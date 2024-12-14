@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attack Surface Dashboard</title>
+    <link rel="stylesheet" href="../static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Attack Surface Dashboard</h1>
+        <a href="/logout" class="logout-button">Logout</a>
+    </header>
+
+    <!-- Filters Section -->
+    <section class="filters">
+        <label for="severity-filter">Severity:</label>
+        <select id="severity-filter" onchange="applyFilters()">
+            <option value="all">All</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+        </select>
+
+        <label for="plugin-filter">Plugin:</label>
+        <select id="plugin-filter" onchange="applyFilters()">
+            <option value="all">All</option>
+            <option value="PortScanner">PortScanner</option>
+            <option value="IoTScanner">IoTScanner</option>
+            <option value="CloudSecurity">CloudSecurity</option>
+            <option value="APISecurityTester">APISecurityTester</option>
+        </select>
+
+        <label for="issue-filter">Issue:</label>
+        <select id="issue-filter" onchange="applyFilters()">
+            <option value="all">All</option>
+            <option value="Open Ports">Open Ports</option>
+            <option value="Default Credentials">Default Credentials</option>
+            <option value="Public S3 Bucket">Public S3 Bucket</option>
+            <option value="Insecure Endpoint">Insecure Endpoint</option>
+        </select>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="charts">
+        <div class="chart-container">
+            <canvas id="vulnerabilityChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="severityPieChart"></canvas>
+        </div>
+    </section>
+
+    <!-- Drill-Down Section -->
+    <section class="drilldown">
+        <h2>Details</h2>
+        <div id="drilldown-container">
+            <p>Select a chart element to view details.</p>
+        </div>
+    </section>
+
+    <script>
+        const results = {{ results | tojson }};
+        const severityCount = { high: 0, medium: 0, low: 0 };
+        results.forEach(r => severityCount[r.severity]++);
+
+        // Chart.js Configurations
+        const vulnerabilityChartConfig = {
+            type: "bar",
+            data: {
+                labels: results.map(r => r.plugin),
+                datasets: [{
+                    label: "Vulnerabilities",
+                    data: results.map(() => 1),
+                    backgroundColor: "rgba(75, 192, 192, 0.6)",
+                }]
+            },
+            options: {
+                responsive: true,
+                onClick: (e, elements) => {
+                    if (elements.length) {
+                        const index = elements[0].index;
+                        const selectedPlugin = vulnerabilityChart.data.labels[index];
+                        const filteredData = results.filter(r => r.plugin === selectedPlugin);
+                        updateDrilldown(filteredData);
+                    }
+                }
+            }
+        };
+
+        const severityPieChartConfig = {
+            type: "pie",
+            data: {
+                labels: ["High", "Medium", "Low"],
+                datasets: [{
+                    data: [severityCount.high, severityCount.medium, severityCount.low],
+                    backgroundColor: ["rgba(255, 99, 132, 0.6)", "rgba(255, 206, 86, 0.6)", "rgba(75, 192, 192, 0.6)"],
+                }]
+            },
+            options: {
+                responsive: true,
+                onClick: (e, elements) => {
+                    if (elements.length) {
+                        const index = elements[0].index;
+                        const selectedSeverity = severityPieChart.data.labels[index].toLowerCase();
+                        const filteredData = results.filter(r => r.severity === selectedSeverity);
+                        updateDrilldown(filteredData);
+                    }
+                }
+            }
+        };
+
+        const vulnerabilityChart = new Chart(
+            document.getElementById("vulnerabilityChart"),
+            vulnerabilityChartConfig
+        );
+
+        const severityPieChart = new Chart(
+            document.getElementById("severityPieChart"),
+            severityPieChartConfig
+        );
+
+        function updateDrilldown(filteredData) {
+            const container = document.getElementById("drilldown-container");
+            container.innerHTML = "";
+            if (filteredData.length === 0) {
+                container.innerHTML = "<p>No data available for the selected filters.</p>";
+                return;
+            }
+            filteredData.forEach(item => {
+                const detail = document.createElement("div");
+                detail.className = "drilldown-item";
+                detail.innerHTML = `
+                    <p><strong>Plugin:</strong> ${item.plugin}</p>
+                    <p><strong>Issue:</strong> ${item.issue}</p>
+                    <p><strong>Severity:</strong> ${item.severity}</p>
+                    <p><strong>Description:</strong> ${item.description}</p>
+                `;
+                container.appendChild(detail);
+            });
+        }
+
+        function applyFilters() {
+            const severity = document.getElementById("severity-filter").value;
+            const plugin = document.getElementById("plugin-filter").value;
+            const issue = document.getElementById("issue-filter").value;
+            let filteredData = results;
+
+            if (severity !== "all") filteredData = filteredData.filter(r => r.severity === severity);
+            if (plugin !== "all") filteredData = filteredData.filter(r => r.plugin === plugin);
+            if (issue !== "all") filteredData = filteredData.filter(r => r.issue === issue);
+
+            vulnerabilityChart.data.labels = filteredData.map(r => r.plugin);
+            vulnerabilityChart.data.datasets[0].data = filteredData.map(() => 1);
+            vulnerabilityChart.update();
+
+            updateDrilldown(filteredData);
+        }
+
+        applyFilters();
+    </script>
+</body>
+</html>

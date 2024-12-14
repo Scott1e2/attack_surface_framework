@@ -1,0 +1,29 @@
+{
+    "discovery_methods": [
+      {
+        "module": "core.discovery_methods.network_discovery",
+        "function": "discover_network_assets",
+        "enabled": true,
+        "parameters": {
+          "ip_range": "192.168.1.0/24"
+        }
+      },
+      {
+        "module": "core.discovery_methods.cloud_discovery",
+        "function": "discover_aws_assets",
+        "enabled": true,
+        "parameters": {}
+      }
+    ],
+    "splunk": {
+      "enabled": true,
+      "url": "http://splunk-url:8088/services/collector",
+      "token": "your-splunk-token"
+    },
+    "elasticsearch": {
+      "enabled": true,
+      "url": "http://elasticsearch-url:9200",
+      "index": "attack_surface_results"
+    }
+  }
+  
